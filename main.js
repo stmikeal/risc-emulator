@@ -169,7 +169,7 @@ const lineVariants = {
   },
   env1: {
     regex: /^\s*(\w+)\s*x(\d+)\s*(?:#.*)?$/i,
-    ops: ['eread', 'ewrite']
+    ops: ['eread', 'ewrite', 'iwrite']
   },
   data: {
     regex: /^\s*data\s+([+-]?\d+)\s*\*\s*(\d+)\s*(?:#.*)?$/i,
@@ -225,6 +225,7 @@ function encodeCommand(op, args) {
 
     case 'ebreak': opcode = 0b1110011; funct7 = 1; break;
     case 'eread': opcode = 0b1110011; funct7 = 2; break;
+    case 'iwrite': opcode = 0b1110011; funct7 = 3; break;
     case 'ewrite': opcode = 0b1110011; funct7 = 4; break;
     default: return 0;
   }
@@ -307,6 +308,9 @@ function encodeCommand(op, args) {
         case 'eread':
           rd = args[0] & 31;
           return opcode | (rd << 7) | (2 << 20);
+        case 'iwrite':
+          rs1 = args[0] & 31;
+          return opcode | (rs1 << 15) | (3 << 20)
         case 'ewrite':
           rs1 = args[0] & 31;
           return opcode | (rs1 << 15) | (4 << 20);
@@ -497,7 +501,7 @@ function decodeCommand(code) {
           setReg(rd, arithmetics[op](a, b));
         }
       };
-    case 0b1110011: // ebreak, eread, ewrite
+    case 0b1110011: // ebreak, eread, ewrite, iwrite
       switch ((code >> 20) & 7) {
         case 1: // ebreak
           return {
@@ -519,6 +523,13 @@ function decodeCommand(code) {
                 setReg(rd, input.charCodeAt(state.readPos++));
               }
             }
+          };
+        case 3: // iwrite
+        case 'iwirte':
+          return {
+            op: 'iwrite ' + textReg(rs1),
+            desc: 'WRITE ' + textReg(rs1),
+            eval: () => { programOutput.value += getReg(rs1).toString() } 
           };
         case 4: // ewrite
         case 'ewrite':
